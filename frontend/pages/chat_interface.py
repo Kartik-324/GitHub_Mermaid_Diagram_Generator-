@@ -1,8 +1,7 @@
-# frontend/pages/chat_interface.py
+# frontend/pages/chat_interface.py - VOICE REMOVED
 import streamlit as st
 import requests
 from components.mermaid_renderer import render_mermaid
-from components.voice_input import render_voice_input
 from utils.state_manager import (
     add_to_diagram_history, 
     clear_chat_history,
@@ -11,7 +10,7 @@ from utils.state_manager import (
 )
 
 def render(api_endpoint):
-    """Render chat interface tab with voice input and all features"""
+    """Render chat interface tab - TEXT INPUT ONLY"""
     
     st.session_state['api_endpoint_current'] = api_endpoint
     
@@ -45,87 +44,57 @@ def render(api_endpoint):
     # Input area at bottom
     st.divider()
     
-    # Voice Input Section
-    st.markdown("### 🎤 Voice or Text Input")
+    st.markdown("### 💬 Ask a Question")
     
-    input_mode = st.radio(
-        "Choose input method:",
-        ["💬 Text", "🎤 Voice"],
-        horizontal=True,
-        label_visibility="collapsed"
-    )
+    # Suggestions
+    st.markdown("**💡 Suggestions:**")
+    if 'temp_input' not in st.session_state:
+        st.session_state.temp_input = ""
     
-    user_question = ""
+    suggestions = get_query_suggestions(st.session_state.temp_input)
     
-    if input_mode == "🎤 Voice":
-        st.markdown("**Click the microphone and speak your question:**")
-        voice_text = render_voice_input(key="voice_input_main", placeholder="Click microphone to speak...")
-        
-        if voice_text:
-            user_question = voice_text
-            st.success(f"🎤 Voice captured: {user_question[:100]}...")
-            
-            # Auto-send button for voice
-            col1, col2, col3 = st.columns([1, 2, 1])
-            with col2:
-                if st.button("📤 Send Voice Message", use_container_width=True, type="primary"):
-                    if chat_repo_url:
-                        add_to_query_history(user_question)
-                        handle_chat_message(api_endpoint, chat_repo_url, user_question)
-                        st.rerun()
-                    else:
-                        st.error("Please enter a GitHub repository URL first.")
+    if suggestions:
+        cols = st.columns(min(len(suggestions), 3))
+        for idx, suggestion in enumerate(suggestions[:3]):
+            with cols[idx]:
+                if st.button(suggestion, key=f"suggest_{idx}", use_container_width=True):
+                    st.session_state.selected_suggestion = suggestion
+                    st.rerun()
     
-    else:  # Text Input
-        # Suggestions
-        st.markdown("**💡 Suggestions:**")
-        if 'temp_input' not in st.session_state:
-            st.session_state.temp_input = ""
+    # Check if a suggestion was clicked
+    if 'selected_suggestion' in st.session_state and st.session_state.selected_suggestion:
+        suggestion = st.session_state.selected_suggestion
+        api_endpoint_stored = st.session_state.get('api_endpoint_current', api_endpoint)
+        st.session_state['selected_suggestion'] = None
+        if chat_repo_url:
+            handle_chat_message(api_endpoint_stored, chat_repo_url, suggestion)
+    
+    # Text input box
+    col1, col2 = st.columns([6, 1])
+    
+    with col1:
+        user_question = st.text_input(
+            "Message",
+            key="user_input",
+            placeholder="Ask about the repository or request a diagram...",
+            label_visibility="collapsed",
+            on_change=update_temp_input
+        )
         
-        suggestions = get_query_suggestions(st.session_state.temp_input)
-        
-        if suggestions:
-            cols = st.columns(min(len(suggestions), 3))
-            for idx, suggestion in enumerate(suggestions[:3]):
-                with cols[idx]:
-                    if st.button(suggestion, key=f"suggest_{idx}", use_container_width=True):
-                        st.session_state.selected_suggestion = suggestion
-                        st.rerun()
-        
-        # Check if a suggestion was clicked
-        if 'selected_suggestion' in st.session_state and st.session_state.selected_suggestion:
-            suggestion = st.session_state.selected_suggestion
-            api_endpoint_stored = st.session_state.get('api_endpoint_current', api_endpoint)
-            st.session_state['selected_suggestion'] = None
-            if chat_repo_url:
-                handle_chat_message(api_endpoint_stored, chat_repo_url, suggestion)
-        
-        # Text input box
-        col1, col2 = st.columns([6, 1])
-        
-        with col1:
-            user_question = st.text_input(
-                "Message",
-                key="user_input",
-                placeholder="Ask about the repository or request a diagram...",
-                label_visibility="collapsed",
-                on_change=update_temp_input
-            )
-            
-            if user_question:
-                st.session_state.temp_input = user_question
-        
-        with col2:
-            send = st.button("Send", use_container_width=True, type="primary")
-        
-        # Handle send
-        if send and user_question and chat_repo_url:
-            add_to_query_history(user_question)
-            handle_chat_message(api_endpoint, chat_repo_url, user_question)
-            st.session_state.temp_input = ""
-            st.rerun()
-        elif send and not chat_repo_url:
-            st.error("Please enter a GitHub repository URL first.")
+        if user_question:
+            st.session_state.temp_input = user_question
+    
+    with col2:
+        send = st.button("Send", use_container_width=True, type="primary")
+    
+    # Handle send
+    if send and user_question and chat_repo_url:
+        add_to_query_history(user_question)
+        handle_chat_message(api_endpoint, chat_repo_url, user_question)
+        st.session_state.temp_input = ""
+        st.rerun()
+    elif send and not chat_repo_url:
+        st.error("Please enter a GitHub repository URL first.")
     
     # Clear chat button
     if st.session_state.chat_history:
@@ -154,10 +123,6 @@ def display_welcome_message():
     
     with col2:
         st.info("📝 **Analysis**\n\n• Show the database schema and relationships\n• Explain the project structure and main components\n• Create a flowchart for the user registration process")
-    
-    st.markdown("---")
-    st.markdown("#### 🎤 **New! Voice Input Available**")
-    st.info("Switch to voice mode above to speak your questions instead of typing!")
 
 def display_chat_history():
     """Display chat history with enhanced download options"""
@@ -184,7 +149,7 @@ def display_chat_history():
                     # Render with enhanced error handling
                     render_success = render_mermaid(
                         msg['diagram'],
-                        height=500,
+                        height=600,
                         unique_id=f"chat_{idx}",
                         theme=mermaid_theme
                     )
@@ -329,7 +294,7 @@ def handle_chat_message(api_endpoint, repo_url, question):
                 f"{api_endpoint}/chat",
                 json=payload,
                 headers=headers,
-                timeout=90
+                timeout=120
             )
             
             if response.status_code == 200:

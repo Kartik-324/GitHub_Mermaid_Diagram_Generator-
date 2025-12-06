@@ -1,93 +1,116 @@
-# frontend/components/sidebar.py
+# frontend/components/sidebar.py - VOICE FEATURE REMOVED
 import streamlit as st
-from config import DEFAULT_API_ENDPOINT
 
 def render_sidebar():
-    """Render sidebar with configuration and info"""
+    """Render sidebar with settings and configuration"""
+    
     with st.sidebar:
-        st.header("⚙️ Configuration")
+        st.markdown("## ⚙️ Settings")
         
-        # Theme switcher
-        st.write("🌓 **Theme Settings**")
-        theme = st.radio(
-            "Choose Theme:", 
-            ["Dark", "Light"], 
-            index=0,
-            key="theme_selector"
-        )
-        st.session_state.theme = theme
-        
-        st.divider()
-        
-        # API endpoint
+        # API Endpoint Configuration
+        st.markdown("### 🔌 API Endpoint")
         api_endpoint = st.text_input(
-            "FastAPI Endpoint", 
-            value=DEFAULT_API_ENDPOINT
+            "Backend URL",
+            value=st.session_state.get('api_endpoint', 'http://localhost:8000'),
+            help="FastAPI backend server address"
         )
+        st.session_state.api_endpoint = api_endpoint
+        
+        # Test connection
+        if st.button("🔍 Test Connection"):
+            import requests
+            try:
+                response = requests.get(f"{api_endpoint}/", timeout=5)
+                if response.status_code == 200:
+                    st.success("✅ Connected successfully!")
+                else:
+                    st.error(f"❌ Server returned: {response.status_code}")
+            except Exception as e:
+                st.error(f"❌ Connection failed: {str(e)}")
         
         st.divider()
         
-        # NEW: GitHub Personal Access Token for Private Repos
-        st.write("🔒 **Private Repository Access**")
+        # GitHub Token (for private repos)
+        st.markdown("### 🔐 GitHub Token")
+        st.info("💡 **Required for private repositories**")
         
-        with st.expander("ℹ️ How to get GitHub Token"):
+        with st.expander("📖 How to get a token", expanded=False):
             st.markdown("""
-            **Steps to create a Personal Access Token:**
-            
-            1. Go to GitHub → Settings
-            2. Developer settings → Personal access tokens → Tokens (classic)
-            3. Generate new token (classic)
-            4. Select scopes: `repo` (Full control of private repositories)
-            5. Copy the token
-            6. Paste it below
-            
-            **Note:** Token is stored only in your browser session and never saved.
+**Steps to create a GitHub token:**
+
+1. Go to [GitHub Settings](https://github.com/settings/tokens)
+2. Click **Generate new token** → **Classic**
+3. Check the **`repo`** permission
+4. Copy the token
+5. Paste it below
+
+**Note:** Public repos don't need a token.
             """)
         
         github_token = st.text_input(
             "GitHub Personal Access Token",
             type="password",
-            placeholder="ghp_xxxxxxxxxxxxxxxxxxxx",
-            help="Required only for private repositories",
-            key="github_token_input"
+            value=st.session_state.get('github_token', ''),
+            help="Required for private repositories. Needs 'repo' scope."
         )
         
-        # Store token in session state
-        if github_token:
+        if github_token != st.session_state.get('github_token', ''):
             st.session_state.github_token = github_token
-            st.success("✅ Token saved for this session")
-        elif 'github_token' not in st.session_state:
-            st.session_state.github_token = None
+            if github_token:
+                st.success("🔒 Token saved! Private repos now accessible.")
+            else:
+                st.info("Public repos only")
         
         st.divider()
         
-        # Info section
-        st.info("""
-        **✨ Features:**
-        - Generate standard diagrams
-        - Chat for custom diagrams
-        - Export diagrams as PNG/SVG
-        - Access private repositories
-        - Focus on specific components
-        - Save diagram history
+        # Theme Selection
+        st.markdown("### 🎨 Theme")
+        theme = st.selectbox(
+            "Choose Theme",
+            options=["Dark", "Light"],
+            index=0 if st.session_state.get('theme', 'Dark') == 'Dark' else 1,
+            key="theme_selector"
+        )
         
-        **Tools:**
-        - OpenAI GPT-4o
-        - FastAPI
-        - LangChain
-        - MermaidJS
-        """)
+        if theme != st.session_state.get('theme'):
+            st.session_state.theme = theme
+            st.rerun()
         
         st.divider()
         
-        # Example prompts
+        # App Info
+        st.markdown("### ℹ️ About")
         st.markdown("""
-        ### 💡 Example Prompts:
-        - "Show sequence diagram between frontend and backend"
-        - "Create flowchart for authentication"
-        - "Visualize the API routes"
-        - "Show database relationships"
-        - "Diagram the component hierarchy"
+**RepoVision AI v2.0**
+
+Transform GitHub repositories into detailed Mermaid diagrams using AI.
+
+**Features:**
+- 📊 Multiple diagram types
+- 💬 Interactive AI chat
+- 🔍 Deep code analysis
+- 🔒 Private repo support
+- 💾 Export PNG/SVG
+
+**Powered by:**
+- OpenAI GPT-4
+- FastAPI
+- Streamlit
         """)
+        
+        # Statistics
+        if st.session_state.diagram_history:
+            st.divider()
+            st.markdown("### 📊 Statistics")
+            st.metric("Diagrams Generated", len(st.session_state.diagram_history))
+        
+        # Clear all data
+        st.divider()
+        if st.button("🗑️ Clear All Data", use_container_width=True):
+            st.session_state.chat_history = []
+            st.session_state.diagram_history = []
+            st.session_state.query_history = []
+            st.success("✅ All data cleared!")
+            st.rerun()
     
     return api_endpoint

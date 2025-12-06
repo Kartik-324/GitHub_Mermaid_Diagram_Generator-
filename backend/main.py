@@ -1,4 +1,4 @@
-# backend/main.py
+# backend/main.py - COMPLETE & TESTED
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
@@ -10,7 +10,11 @@ from routes import diagram_routes, chat_routes
 
 load_dotenv()
 
-app = FastAPI(title="GitHub Mermaid Diagram Generator")
+app = FastAPI(
+    title="RepoVision AI - GitHub Repository Analyzer",
+    description="AI-powered GitHub repository analysis with detailed Mermaid diagrams",
+    version="2.0"
+)
 
 # CORS Configuration
 app.add_middleware(
@@ -22,21 +26,19 @@ app.add_middleware(
 )
 
 # Include routers
-app.include_router(diagram_routes.router)
-app.include_router(chat_routes.router)
+app.include_router(diagram_routes.router, tags=["Diagrams"])
+app.include_router(chat_routes.router, tags=["Chat"])
 
-# NEW: Export diagram as image endpoint
 @app.post("/export-diagram")
 async def export_diagram(request: dict):
     """Convert Mermaid diagram to PNG or SVG image"""
     try:
         mermaid_code = request.get("mermaid_code", "")
-        format_type = request.get("format", "png").lower()  # png or svg
+        format_type = request.get("format", "png").lower()
         
         if not mermaid_code:
             raise HTTPException(status_code=400, detail="No mermaid code provided")
         
-        # Use mermaid.ink API to convert diagram to image
         # Encode mermaid code to base64
         encoded = base64.urlsafe_b64encode(mermaid_code.encode('utf-8')).decode('utf-8')
         
@@ -44,7 +46,7 @@ async def export_diagram(request: dict):
         if format_type == "svg":
             url = f"https://mermaid.ink/svg/{encoded}"
             media_type = "image/svg+xml"
-        else:  # default to png
+        else:
             url = f"https://mermaid.ink/img/{encoded}"
             media_type = "image/png"
         
@@ -75,17 +77,38 @@ async def export_diagram(request: dict):
 
 @app.get("/")
 async def root():
+    """Root endpoint with API information"""
     return {
-        "message": "Enhanced GitHub Mermaid Diagram Generator",
+        "message": "RepoVision AI - GitHub Repository Analyzer",
         "version": "2.0",
+        "status": "operational",
         "endpoints": {
-            "/generate-diagram": "POST - Generate detailed diagram",
-            "/generate-custom-diagram": "POST - Custom detailed diagram",
-            "/chat": "POST - Chat with detailed diagram generation",
+            "/generate-diagram": "POST - Generate specific diagram type",
+            "/generate-custom-diagram": "POST - Generate custom diagram",
+            "/chat": "POST - Interactive chat with repository analysis",
             "/export-diagram": "POST - Export diagram as PNG/SVG"
-        }
+        },
+        "features": [
+            "Detailed diagram generation (10-20+ components)",
+            "Private repository support with GitHub token",
+            "Multiple diagram types (sequence, component, database, etc.)",
+            "Interactive AI chat",
+            "Export to PNG/SVG"
+        ]
     }
+
+@app.get("/health")
+async def health_check():
+    """Health check endpoint"""
+    return {"status": "healthy", "version": "2.0"}
 
 if __name__ == "__main__":
     import uvicorn
+    print("\n" + "="*60)
+    print("🚀 Starting RepoVision AI Backend")
+    print("="*60)
+    print("📍 Server: http://localhost:8000")
+    print("📖 Docs: http://localhost:8000/docs")
+    print("="*60 + "\n")
+    
     uvicorn.run(app, host="0.0.0.0", port=8000)
